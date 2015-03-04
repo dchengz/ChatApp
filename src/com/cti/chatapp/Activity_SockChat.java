@@ -30,7 +30,7 @@ import com.github.nkzawa.socketio.client.Socket;
 public class Activity_SockChat extends Activity implements MessagesFragment.OnFragmentInteractionListener {
 	private EditText msgEdit;
     private Button sendBtn;
-    private String profileId, profileName, imei, myIMEI;
+    private String profileId, profileName, login, myIMEI;
     GCMHelper gcm_helper;
     public static boolean isInit = false;
     public static ActionBar actionBar;
@@ -52,15 +52,15 @@ public class Activity_SockChat extends Activity implements MessagesFragment.OnFr
 	@Override
 	protected void onResume() {
 		super.onResume();
-		String statusimei = gcm_helper.consStatusbyImei(imei);
-		if (!statusimei.equals("online")) {
+		String statuslogin = gcm_helper.consStatusbyLogin(login);
+		if (!statuslogin.equals("online")) {
 			SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm");
-			long ddat = Long.valueOf(statusimei);
+			long ddat = Long.valueOf(statuslogin);
 			cal.setTimeInMillis(1000*ddat);
 //			statusimei="Ultima visita "+cal.YEAR+"/"+cal.MONTH+"/"+cal.DAY_OF_MONTH+" "+cal.HOUR_OF_DAY+":"+cal.MINUTE;
-			statusimei="Ultima visita "+sdf.format(cal.getTime());
+			statuslogin="Ultima visita "+sdf.format(cal.getTime());
 		}
-		actionBar.setSubtitle(statusimei);
+		actionBar.setSubtitle(statuslogin);
 		actionBar.setTitle(profileName);
 	}
 
@@ -79,14 +79,15 @@ public class Activity_SockChat extends Activity implements MessagesFragment.OnFr
 		cal=Calendar.getInstance();
 		setContentView(R.layout.activity_chat);
 		gcm_helper = GCMHelper.getHelper(this);
-		TelephonyManager tm = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-		myIMEI = tm.getDeviceId();		
+//		TelephonyManager tm = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+//		myIMEI = tm.getDeviceId();
 		
         profileId = getIntent().getStringExtra("ID");
-        imei = getIntent().getStringExtra("imei");
-        profileName = gcm_helper.consRegidbyImei(imei, "alias");        
-                
-        System.out.println("prof: "+profileName+" "+imei+" "+profileId);
+        login = getIntent().getStringExtra("login");
+        myIMEI = getIntent().getStringExtra("myLog");
+        profileName = gcm_helper.consRegidbyImei(login, "alias");
+        
+        System.out.println("prof: "+profileName+" "+login+" "+profileId);
         msgEdit = (EditText) findViewById(R.id.msg_edit);
         sendBtn = (Button) findViewById(R.id.send_btn);
         actionBar = getActionBar();
@@ -103,7 +104,7 @@ public class Activity_SockChat extends Activity implements MessagesFragment.OnFr
             	String fecha = String.valueOf(System.currentTimeMillis());
             	final JSONArray ja = new JSONArray();
 				final JSONObject jo = new JSONObject();
-				long idmsg = gcm_helper.insertDB(GCMHelper.table_im, new String[]{imei,msg,"0",fecha});
+				long idmsg = gcm_helper.insertDB(GCMHelper.table_im, new String[]{login,msg,"0",fecha});
 				mSocket.emit("new message", new Object[]{msg,idmsg});
 				gcm_helper.updateDB(GCMHelper.table_im, new String[]{"1"}, new String[]{String.valueOf(idmsg)});
 				MessagesFragment.adapter.add(new Obj_GCM(String.valueOf(idmsg),"111",msg,0,fecha,1));
@@ -160,7 +161,7 @@ public class Activity_SockChat extends Activity implements MessagesFragment.OnFr
 	}
 	@Override
 	public String getProfileEmail() {
-		return imei;
+		return login;
 	}
 
 	private Emitter.Listener onLogin = new Emitter.Listener() {

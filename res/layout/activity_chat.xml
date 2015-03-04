@@ -8,7 +8,7 @@
     
      
     <fragment
-        android:name="com.cti.nexummobileapp.frame.MessagesFragment"
+        android:name="com.cti.chatapp.frame.MessagesFragment"
         android:id="@+id/msg_list"
         android:layout_width="match_parent"
         android:layout_height="0dip"

@@ -49,7 +49,7 @@ public class Activ_Chat extends Activity implements MessagesFragment.OnFragmentI
 	@Override
 	protected void onResume() {
 		super.onResume();
-		String statusimei = gcm_helper.consStatusbyImei(imei);
+		String statusimei = gcm_helper.consStatusbyLogin(imei);
 		if (!statusimei.equals("online")) {
 			SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm");
 			long ddat = Long.valueOf(statusimei);

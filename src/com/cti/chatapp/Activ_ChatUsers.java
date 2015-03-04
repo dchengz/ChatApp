@@ -11,12 +11,14 @@ import org.json.JSONObject;
 
 import android.app.ActivityManager;
 import android.app.ListActivity;
+import android.app.ProgressDialog;
 import android.app.ActivityManager.RunningServiceInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.telephony.TelephonyManager;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -26,6 +28,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.cti.chatapp.object.AppMethods;
 import com.cti.chatapp.object.GCMHelper;
@@ -37,6 +40,7 @@ public class Activ_ChatUsers extends ListActivity {
 	public static String myIMEI;
 	private GCMHelper gcm_helper;
 	private Calendar cal;
+	private Handler hh;
 
 	@Override
 	protected void onStart() {
@@ -46,42 +50,42 @@ public class Activ_ChatUsers extends ListActivity {
 			MyApplication.activityResumed(getApplicationContext());
 			System.out.println("ON START "+MyApplication.isActivityVisible());
 		}
-		new AsyncTask<String, Void, JSONArray>() {
-			@Override
-			protected JSONArray doInBackground(String... params) {
-				JSONArray status = null;
-				try {
-					status=AppMethods.chat_allstat(params[0]);
-				} catch (IOException e) {
-					e.printStackTrace();
-				} catch (JSONException e) {
-					e.printStackTrace();
-				}
-				return status;
-			}
-			@Override
-			protected void onPostExecute(JSONArray jsonArray) {
-				if (jsonArray!=null) {
-					try {
-						JSONObject jo = new JSONObject();
-						for (int i = 0; i < jsonArray.length(); i++) {
-							jo = jsonArray.getJSONObject(i);
-							String imeii = jo.getString("imei");
-							String[] data = new String[]{jo.getString("sta"),jo.getString("fec")};
-							gcm_helper.updateChat(data, new String[]{imeii});
-							if (isInit) {
-								mAdapter.update(imeii, data);
-							}
-						}
-						if (isInit) {
-							mAdapter.notifyDataSetChanged();
-						}
-					} catch (JSONException e) {
-						e.printStackTrace();
-					}
-				}
-			}			
-		}.execute(myIMEI);
+//		new AsyncTask<String, Void, JSONArray>() {
+//			@Override
+//			protected JSONArray doInBackground(String... params) {
+//				JSONArray status = null;
+//				try {
+//					status=AppMethods.chat_allstat(params[0]);
+//				} catch (IOException e) {
+//					e.printStackTrace();
+//				} catch (JSONException e) {
+//					e.printStackTrace();
+//				}
+//				return status;
+//			}
+//			@Override
+//			protected void onPostExecute(JSONArray jsonArray) {
+//				if (jsonArray!=null) {
+//					try {
+//						JSONObject jo = new JSONObject();
+//						for (int i = 0; i < jsonArray.length(); i++) {
+//							jo = jsonArray.getJSONObject(i);
+//							String imeii = jo.getString("imei");
+//							String[] data = new String[]{jo.getString("sta"),jo.getString("fec")};
+//							gcm_helper.updateChat(data, new String[]{imeii});
+//							if (isInit) {
+//								mAdapter.update(imeii, data);
+//							}
+//						}
+//						if (isInit) {
+//							mAdapter.notifyDataSetChanged();
+//						}
+//					} catch (JSONException e) {
+//						e.printStackTrace();
+//					}
+//				}
+//			}			
+//		}.execute(myIMEI);
 	}
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -100,13 +104,16 @@ public class Activ_ChatUsers extends ListActivity {
 		}
 		if (id == R.id.action_login) {
 			if (isServRunning()) {
+				hh.obtainMessage(1, "Servicio detenido").sendToTarget();
 				stopService(new Intent(this, Serv_ChatSocket.class));
 			} else {
 				ArrayList<Obj_GCM> obj = gcm_helper.consDB(GCMHelper.table_registration);
 				if (obj.size()>0) {
 					Intent i = new Intent(this, Serv_ChatSocket.class);
+					System.out.println("chatusers: login="+obj.get(0).getLogin());
 					i.putExtra("logintxt", obj.get(0).getLogin());
 					startService(i);
+					hh.obtainMessage(1, "Servicio iniciado").sendToTarget();
 				} else {
 					startActivity(new Intent(this, Activ_Login.class));
 				}
@@ -139,10 +146,28 @@ public class Activ_ChatUsers extends ListActivity {
 		mAdapter=null;
 		super.onDestroy();
 	}
+	
+	@Override
+	protected void onResume() {
+		super.onResume();
+		if (isServRunning()) {
+			hh.obtainMessage(1, "SERV RUNNING").sendToTarget();
+		} else {
+			hh.obtainMessage(1, "SERV NOT RUN").sendToTarget();
+		}
+	}
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		cal=Calendar.getInstance();
+		hh = new Handler() {
+			public void handleMessage(android.os.Message msg){
+				if (msg.what==1) {
+					Toast.makeText(getBaseContext(), msg.obj.toString(), Toast.LENGTH_SHORT).show();
+				} else if (msg.what==2) {
+				}
+			};
+		};
 		TelephonyManager tm = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
 		myIMEI = tm.getDeviceId();
 		gcm_helper = GCMHelper.getHelper(this);
@@ -159,7 +184,8 @@ public class Activ_ChatUsers extends ListActivity {
 		Intent i = new Intent(this, Activity_SockChat.class);
 		isInit = true;	
 		i.putExtra("ID", regid);
-		i.putExtra("imei", o.getImei());
+		i.putExtra("login", o.getLogin());
+		i.putExtra("myLog", myIMEI);
 		startActivity(i);
 	}
 	public class MyArrayAdapterUsers extends ArrayAdapter<Obj_GCM> {
@@ -175,7 +201,7 @@ public class Activ_ChatUsers extends ListActivity {
 		public View getView(int position, View convertView, ViewGroup parent) {
 			Obj_GCM ob = gcm_arr.get(position);
 			String alias = ob.getAlias();
-			String imei = ob.getImei();
+			String login = ob.getLogin();
 			if (convertView==null) {
 				LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 				convertView = inflater.inflate(R.layout.activity_chatusers, parent, false);
@@ -201,10 +227,10 @@ public class Activ_ChatUsers extends ListActivity {
 			convertView.setPadding(8, 12, 8, 12);
 			return convertView;
 		}
-		public void update(String imei, String[] data) {
+		public void update(String login, String[] data) {
 			for (int i = 0; i < gcm_arr.size(); i++) {
 				System.out.println(gcm_arr.get(i).getId()+" viewed:"+gcm_arr.get(i).getViewed());
-				if (gcm_arr.get(i).getImei().equals(imei)) {
+				if (gcm_arr.get(i).getLogin().equals(login)) {
 					gcm_arr.get(i).setFlag(Integer.valueOf(data[0]));
 					gcm_arr.get(i).setChdate(data[1]);
 					break;
