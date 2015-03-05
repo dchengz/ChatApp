@@ -120,7 +120,7 @@ public class GCMHelper extends SQLiteOpenHelper {
 		closeDatabase();
 		return answer;
 	}
-	public String consRegidbyImei(String login, String whichone){
+	public String consRegidbyLogin(String login, String whichone){
 		openDatabase();
 		Cursor c = mDatabase.rawQuery("SELECT regid,alias FROM "+table_users+" WHERE login = ?", new String[]{login});
 		String regid = null;

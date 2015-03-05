@@ -106,7 +106,7 @@ public class Activ_Chat extends Activity implements MessagesFragment.OnFragmentI
         
         profileId = getIntent().getStringExtra("ID");
         imei = getIntent().getStringExtra("imei");
-        profileName = gcm_helper.consRegidbyImei(imei, "alias");        
+        profileName = gcm_helper.consRegidbyLogin(imei, "alias");        
         
         System.out.println("prof: "+profileName+" "+imei+" "+profileId);
         msgEdit = (EditText) findViewById(R.id.msg_edit);

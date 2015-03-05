@@ -85,7 +85,7 @@ public class Activity_SockChat extends Activity implements MessagesFragment.OnFr
         profileId = getIntent().getStringExtra("ID");
         login = getIntent().getStringExtra("login");
         myIMEI = getIntent().getStringExtra("myLog");
-        profileName = gcm_helper.consRegidbyImei(login, "alias");
+        profileName = gcm_helper.consRegidbyLogin(login, "alias");
         
         System.out.println("prof: "+profileName+" "+login+" "+profileId);
         msgEdit = (EditText) findViewById(R.id.msg_edit);

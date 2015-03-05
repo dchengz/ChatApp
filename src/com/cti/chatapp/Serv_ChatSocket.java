@@ -2,13 +2,18 @@ package com.cti.chatapp;
 
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.cti.chatapp.MyApplication;
-import com.cti.chatapp.Activ_ChatUsers;
+import android.app.Service;
+import android.content.Intent;
+import android.os.IBinder;
+
 import com.cti.chatapp.object.GCMHelper;
 import com.cti.chatapp.object.Obj_GCM;
 import com.github.nkzawa.emitter.Emitter;
@@ -16,15 +21,12 @@ import com.github.nkzawa.socketio.client.Ack;
 import com.github.nkzawa.socketio.client.IO;
 import com.github.nkzawa.socketio.client.Socket;
 
-import android.app.Service;
-import android.content.Intent;
-import android.os.IBinder;
-import android.widget.Toast;
-
 public class Serv_ChatSocket extends Service {
 	public Socket mSocket;
 	private String myIMEI;
 	private GCMHelper gcm_helper;
+	private Map<String, String> conversac;
+	private Calendar cal;
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -43,6 +45,8 @@ public class Serv_ChatSocket extends Service {
 	public void onCreate() {
 		super.onCreate();
 		gcm_helper = GCMHelper.getHelper(this);
+		cal=Calendar.getInstance();
+		conversac = new HashMap<String, String>();
 		try {
             mSocket = IO.socket("http://contacto123.sytes.net:3000");
         } catch (URISyntaxException e) {
@@ -52,6 +56,9 @@ public class Serv_ChatSocket extends Service {
         mSocket.on(Socket.EVENT_CONNECT_TIMEOUT, onConnectError);
         mSocket.on("login", onLogin);
         mSocket.on("logout", onLogout);
+        mSocket.on("new conver", onNewConver);
+        mSocket.on("new message", onNewMessage);
+        mSocket.on("make_leave_room", onMakeLeaveRoom);
         mSocket.connect();
 	}
 
@@ -61,6 +68,9 @@ public class Serv_ChatSocket extends Service {
         mSocket.off(Socket.EVENT_CONNECT_TIMEOUT, onConnectError);
         mSocket.off("login", onLogin);
         mSocket.off("logout", onLogout);
+        mSocket.off("new conver", onNewConver);
+        mSocket.off("new message", onNewMessage);
+        mSocket.off("make_leave_room", onMakeLeaveRoom);
         mSocket.disconnect();
 		super.onDestroy();
 	}
@@ -100,6 +110,50 @@ public class Serv_ChatSocket extends Service {
         public void call(Object... args) {
         	System.out.println("onConnectError: "+R.string.error_connect);
 //        	Toast.makeText(getApplicationContext(), R.string.error_connect, Toast.LENGTH_LONG).show();
+        }
+    };
+    private Emitter.Listener onNewConver = new Emitter.Listener() {
+        @Override
+        public void call(Object... args) {
+        	JSONArray arr_conversac = (JSONArray) args[0];
+        	try {
+				JSONObject jo = arr_conversac.getJSONObject(0);
+				conversac.put(jo.getString("username"), jo.getString("token"));
+				mSocket.emit("add room", new Object[]{jo.getString("token")});
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+        	System.out.println("onNewConver: "+R.string.error_connect);
+//        	Toast.makeText(getApplicationContext(), R.string.error_connect, Toast.LENGTH_LONG).show();
+        }
+    };
+    private Emitter.Listener onNewMessage = new Emitter.Listener() {
+        @Override
+        public void call(Object... args) {
+        	JSONArray arr_conversac = (JSONArray) args[0];
+        	try {
+				JSONObject jo = arr_conversac.getJSONObject(0);				
+				gcm_helper.insertDB(GCMHelper.table_im, new String[]{jo.getString("username"),jo.getString("message"),"1",String.valueOf(cal.getTimeInMillis()/1000)});				
+//				mSocket.emit("add room", new Object[]{jo.getString("token")});
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+        	System.out.println("onNewConver: "+R.string.error_connect);
+//        	Toast.makeText(getApplicationContext(), R.string.error_connect, Toast.LENGTH_LONG).show();
+        }
+    };
+    private Emitter.Listener onMakeLeaveRoom = new Emitter.Listener() {
+        @Override
+        public void call(Object... args) {
+        	JSONArray arr_data = (JSONArray) args[0];
+        	try {
+				JSONObject jo = arr_data.getJSONObject(0);				
+				mSocket.emit("leave room", new Object[]{jo.getString("room")});
+				conversac.remove(jo.getString("username"));
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+        	
         }
     };
     private Emitter.Listener onLogin = new Emitter.Listener() {
